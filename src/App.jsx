@@ -22,6 +22,7 @@ export default function App() {
   const [bgParticles, setBgParticles] = useState([]);
   
   const audioRef = useRef(null);
+  const iframeRef = useRef(null);
   const currentSongUrl = step >= 6 ? CONFIG.letterSong : CONFIG.birthdaySong;
   const youtubeId = getYouTubeId(currentSongUrl);
   const isYouTube = !!youtubeId;
@@ -42,21 +43,34 @@ export default function App() {
   // Handle music playing
   const handlePlayMusic = () => {
     setMusicPlaying(true);
-    if (!isYouTube && audioRef.current) {
+    if (isYouTube && iframeRef.current) {
+      iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func: "unMute", args: "" }), "*");
+      iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func: "seekTo", args: [0, true] }), "*");
+      iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: "" }), "*");
+    } else if (!isYouTube && audioRef.current) {
       audioRef.current.play().catch((err) => {
         console.warn("Autoplay blocked by browser. Interaction required.", err);
       });
     }
   };
 
-  // Handle song changes when transitioning between step 5 and step 6
+  // Handle song changes when transitioning between step 5 and step 6, or manual play/pause toggle
   useEffect(() => {
     if (musicPlaying) {
-      if (!isYouTube && audioRef.current) {
+      if (isYouTube && iframeRef.current) {
+        iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func: "unMute", args: "" }), "*");
+        iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func: "seekTo", args: [0, true] }), "*");
+        iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: "" }), "*");
+      } else if (!isYouTube && audioRef.current) {
         audioRef.current.load();
         audioRef.current.play().catch((err) => {
           console.warn("Audio transition playback failed:", err);
         });
+      }
+    } else {
+      if (isYouTube && iframeRef.current) {
+        iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func: "mute", args: "" }), "*");
+        iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: "" }), "*");
       }
     }
   }, [currentSongUrl, isYouTube, musicPlaying]);
@@ -136,13 +150,14 @@ export default function App() {
       </div>
 
       {/* Audio Players */}
-      {/* 1. YouTube Iframe Player */}
-      {isYouTube && musicPlaying && (
+      {/* 1. YouTube Iframe Player (Mounted early on step >= 4 to preload and buffer silently) */}
+      {isYouTube && step >= 4 && (
         <iframe
+          ref={iframeRef}
           key={currentSongUrl}
           width="0"
           height="0"
-          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&loop=1&playlist=${youtubeId}&controls=0&mute=0`}
+          src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&autoplay=1&mute=${musicPlaying ? 0 : 1}&loop=1&playlist=${youtubeId}&controls=0`}
           title="Birthday Song Player"
           allow="autoplay"
           style={{ display: "none", position: "absolute", width: 0, height: 0, border: 0 }}
