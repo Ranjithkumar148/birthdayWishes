@@ -4,6 +4,19 @@ import confetti from "canvas-confetti";
 export default function CelebrationScreen({ name, musicPlaying, onPlayMusic, onNext }) {
   const canvasRef = useRef(null);
   const [balloons, setBalloons] = useState([]);
+  const [showWishesButton, setShowWishesButton] = useState(false);
+
+  // Delay the wishes button by 5 seconds once music starts playing
+  useEffect(() => {
+    if (musicPlaying) {
+      const timer = setTimeout(() => {
+        setShowWishesButton(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowWishesButton(false);
+    }
+  }, [musicPlaying]);
 
   // Generate balloons
   useEffect(() => {
@@ -327,9 +340,15 @@ export default function CelebrationScreen({ name, musicPlaying, onPlayMusic, onN
               Today is all about you. May your day be filled with laughter, love, and sweet moments!
             </p>
 
-            <button className="btn-premium" onClick={onNext}>
-              My Birthday Wishes
-            </button>
+            {!showWishesButton ? (
+              <button className="btn-premium" style={{ opacity: 0.5, cursor: "not-allowed", pointerEvents: "none" }}>
+                wait..
+              </button>
+            ) : (
+              <button className="btn-premium" onClick={onNext} style={{ animation: "slideUpFade 0.6s ease-out" }}>
+                My Birthday Wishes
+              </button>
+            )}
           </div>
         )}
       </div>
